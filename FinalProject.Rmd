@@ -12,15 +12,16 @@ library(tidyverse)
 install.packages("glmnet")
 library(glmnet)
 library(caret)
+#The all_teams file has game-level data for both teams in every NHL regular season game played since the start of the 2008-2009 season
 games <- read.csv("C:/Users/treye/OneDrive/Documents/all_teams.csv", header = TRUE)
 season <- read.csv("C:/Users/treye/OneDrive/Documents/all_teams.csv", header = TRUE)
 season <- season %>% filter(situation == "all", season == "2024", !(goalsFor == goalsAgainst))
 season$win <- ifelse(season$goalsFor > season$goalsAgainst, 1, 0)
 games <- games %>% filter(situation == "all", !(season == "2024"), !(goalsFor == goalsAgainst)) %>% select(-situation, -team, -season, -name, -playerTeam, -opposingTeam, -home_or_away, -gameId, -gameDate, -position, -iceTime)
+#Creating the response variable (whether the team won or lost the game)
 games$win <- ifelse(games$goalsFor > games$goalsAgainst, 1, 0)
 games <- games %>% select(-goalsFor, -goalsAgainst, -lowDangerGoalsFor, -lowDangerGoalsAgainst, -mediumDangerGoalsFor, -mediumDangerGoalsAgainst, -highDangerGoalsFor, -highDangerGoalsAgainst, -reboundGoalsFor, -reboundGoalsAgainst, -savedShotsOnGoalFor, - savedShotsOnGoalAgainst, -savedUnblockedShotAttemptsFor, -savedUnblockedShotAttemptsAgainst, -scoreAdjustedUnblockedShotAttemptsFor, -scoreAdjustedUnblockedShotAttemptsAgainst, -totalShotCreditFor, -totalShotCreditAgainst, -flurryScoreVenueAdjustedxGoalsAgainst, -flurryScoreVenueAdjustedxGoalsFor, -scoreVenueAdjustedxGoalsAgainst, -scoreVenueAdjustedxGoalsFor, -scoreAdjustedUnblockedShotAttemptsFor, -scoreAdjustedUnblockedShotAttemptsAgainst)
 games <- games %>% select(win, everything())
-games <- games %>% mutate(xgfps = xGoalsFor/shotsOnGoalFor, xgaps = xGoalsAgainst/shotsOnGoalAgainst)
 games_reg <- games %>% filter(playoffGame == 0)
 games_reg <- games_reg %>% select(-playoffGame)
 games_post <- games %>% filter(playoffGame == 1)
@@ -35,8 +36,11 @@ m = dim(games_post)[1]
 train2 = sample(m, 0.8 * m)
 test2 = setdiff(1:m, train2)
 
+#Training the logistic regression model
 model <- glm(win ~ mediumDangerShotsFor + xGoalsFor + xGoalsAgainst + highDangerShotsFor + fenwickPercentage + unblockedShotAttemptsFor + unblockedShotAttemptsAgainst + reboundsFor + reboundsAgainst + freezeFor + freezeAgainst + playStoppedFor + playStoppedAgainst + takeawaysFor + takeawaysAgainst + flurryAdjustedxGoalsFor + flurryAdjustedxGoalsAgainst + lowDangerxGoalsFor + lowDangerxGoalsAgainst + blockedShotAttemptsFor + blockedShotAttemptsAgainst, games_reg, subset = train, family = binomial)
 
+
+#This is calculating the misclassification rate of the logistic regression model
 response = games_reg$win[test]
 prediction = predict(model, games_reg[test, ])
 prediction = as.numeric(prediction > 0 )
@@ -45,9 +49,12 @@ prediction = as.numeric(prediction > 0.5)
 table(response, prediction)
 rate = mean(response != prediction)
 rate
+
 ```
 
 ```{r, echo = TRUE}
+#This is the creating and populating the data frame that will hold the average predictor values for each team. The averages are taken from every game 
+#the teams have played so far in the 2024-2025 NHL season
 season_avg <- data.frame(season %>% select(team, situation, mediumDangerShotsFor, xGoalsFor, xGoalsAgainst, highDangerShotsFor, fenwickPercentage, unblockedShotAttemptsFor, unblockedShotAttemptsAgainst, reboundsFor, reboundsAgainst, freezeFor, freezeAgainst, playStoppedFor, playStoppedAgainst, takeawaysFor, takeawaysAgainst, flurryAdjustedxGoalsFor, flurryAdjustedxGoalsAgainst, lowDangerxGoalsFor, lowDangerxGoalsAgainst, playContinuedInZoneFor, playContinuedInZoneAgainst, blockedShotAttemptsFor, blockedShotAttemptsAgainst))
 season_avg <- season_avg %>% filter(situation == "all") %>% group_by(team) %>% summarize(mediumDangerShotsFor = mean(mediumDangerShotsFor), xGoalsFor = mean(xGoalsFor), xGoalsAgainst = mean(xGoalsAgainst), highDangerShotsFor = mean(highDangerShotsFor), fenwickPercentage = mean(fenwickPercentage), unblockedShotAttemptsFor = mean(unblockedShotAttemptsFor), unblockedShotAttemptsAgainst = mean(unblockedShotAttemptsAgainst), reboundsFor = mean(reboundsFor), reboundsAgainst = mean(reboundsAgainst), freezeFor = mean(freezeFor), freezeAgainst = mean(freezeAgainst), playStoppedFor = mean(playStoppedFor), playStoppedAgainst = mean(playStoppedAgainst), takeawaysFor = mean(takeawaysFor), takeawaysAgainst = mean(takeawaysAgainst), flurryAdjustedxGoalsFor = mean(flurryAdjustedxGoalsFor), flurryAdjustedxGoalsAgainst = mean(flurryAdjustedxGoalsAgainst), lowDangerxGoalsFor = mean(lowDangerxGoalsFor), lowDangerxGoalsAgainst = mean(lowDangerxGoalsAgainst), blockedShotAttemptsFor = mean(blockedShotAttemptsFor), blockedShotAttemptsAgainst = mean(blockedShotAttemptsAgainst))
 season_avg$teamName <- c("Anaheim Ducks", "Boston Bruins", "Buffalo Sabres", "Carolina Hurricanes", "Columbus Blue Jackets", "Calgary Flames", "Chicago Blackhawks", "Colorado Avalanche", "Dallas Stars", "Detroit Red Wings", "Edmonton Oilers", "Florida Panthers", "Los Angeles Kings", "Minnesota Wild", "Montreal Canadiens", "New Jersey Devils", "Nashville Predators", "New York Islanders", "New York Rangers", "Ottawa Senators", "Philadelphia Flyers", "Pittsburgh Penguins", "Seattle Kraken", "San Jose Sharks", "St. Louis Blues", "Tampa Bay Lightning", "Toronto Maple Leafs", "Utah Hockey Club", "Vancouver Canucks", "Vegas Golden Knights", "Winnipeg Jets", "Washington Capitals")
@@ -55,18 +62,19 @@ season_avg$teamName <- c("Anaheim Ducks", "Boston Bruins", "Buffalo Sabres", "Ca
 
 
 ```{r, echo = TRUE}
+#Function that takes in a team name and using the model, calculates the probability that the team wins any given game that they play
 winprob <- function(team){
   return(predict(model, data.frame(mediumDangerShotsFor = season_avg$mediumDangerShotsFor[season_avg$teamName == team], xGoalsFor = season_avg$xGoalsFor[season_avg$teamName == team], xGoalsAgainst = season_avg$xGoalsAgainst[season_avg$teamName == team], highDangerShotsFor = season_avg$highDangerShotsFor[season_avg$teamName == team], fenwickPercentage = season_avg$fenwickPercentage[season_avg$teamName == team], unblockedShotAttemptsFor = season_avg$unblockedShotAttemptsFor[season_avg$teamName == team], unblockedShotAttemptsAgainst = season_avg$unblockedShotAttemptsAgainst[season_avg$teamName == team], reboundsFor = season_avg$reboundsFor[season_avg$teamName == team], reboundsAgainst = season_avg$reboundsAgainst[season_avg$teamName == team], freezeFor = season_avg$freezeFor[season_avg$teamName == team], freezeAgainst = season_avg$freezeAgainst[season_avg$teamName == team], playStoppedFor = season_avg$playStoppedFor[season_avg$teamName == team], playStoppedAgainst = season_avg$playStoppedAgainst[season_avg$teamName == team], takeawaysFor = season_avg$takeawaysFor[season_avg$teamName == team], takeawaysAgainst = season_avg$takeawaysAgainst[season_avg$teamName == team], flurryAdjustedxGoalsFor = season_avg$flurryAdjustedxGoalsFor[season_avg$teamName == team], flurryAdjustedxGoalsAgainst = season_avg$flurryAdjustedxGoalsAgainst[season_avg$teamName == team], lowDangerxGoalsFor = season_avg$lowDangerxGoalsFor[season_avg$teamName == team], lowDangerxGoalsAgainst = season_avg$lowDangerxGoalsAgainst[season_avg$teamName == team], blockedShotAttemptsFor = season_avg$blockedShotAttemptsFor[season_avg$teamName == team], blockedShotAttemptsAgainst = season_avg$blockedShotAttemptsAgainst[season_avg$teamName == team]), type = "response"))
 }
 ```
 
 ```{r, echo = TRUE}
+#Creates the standings data frame
 standings <- data.frame(teamCode = c("BOS", "BUF", "DET", "FLA", "MTL", "OTT", "TBL", "TOR", "CAR", "CBJ", "NJD", "NYI", "NYR", "PHI", "PIT", "WSH", "UTA", "CHI", "COL", "DAL", "MIN", "NSH", "STL", "WPG", "ANA", "CGY", "EDM", "LAK", "SJS", "SEA", "VAN", "VGK"), teamName = c("Boston Bruins", "Buffalo Sabres", "Detroit Red Wings", "Florida Panthers", "Montreal Canadiens", "Ottawa Senators", "Tampa Bay Lightning", "Toronto Maple Leafs", "Carolina Hurricanes", "Columbus Blue Jackets", "New Jersey Devils", "New York Islanders", "New York Rangers", "Philadelphia Flyers", "Pittsburgh Penguins", "Washington Capitals", "Utah Hockey Club", "Chicago Blackhawks", "Colorado Avalanche", "Dallas Stars", "Minnesota Wild", "Nashville Predators", "St. Louis Blues", "Winnipeg Jets", "Anaheim Ducks", "Calgary Flames", "Edmonton Oilers", "Los Angeles Kings", "San Jose Sharks", "Seattle Kraken", "Vancouver Canucks", "Vegas Golden Knights"), division = c(rep("Atlantic", 8), rep("Metropolitan", 8), rep("Central", 8), rep("Pacific", 8)), points = c(rep(0, 32)), wins = c(rep(0, 32)), regulation_losses = c(rep(0, 32)), overtime_shootout_losses = c(rep(0, 32)))
-
-
 ```
 
 ```{r, echo = TRUE}
+#This file has a list of every game in the 2024-2025 regular season, with information about the score for the games that have already been played
 games24 <- read.csv("C:/Users/treye/OneDrive/Documents/games24.csv", header = TRUE)
 
 p <- 0
@@ -81,6 +89,7 @@ rownum <- function(){
 
 rows <- rownum() - 1
 
+#Updates the standings data frame to reflect the current NHL standings
 for(i in 1:rows){
   if(!is.na(games24$homeGoals[i]) && !is.na(games24$homeGoals[i])){
   if(games24$awayGoals[i] > games24$homeGoals[i]){
@@ -111,13 +120,9 @@ standings %>% arrange(desc(division), desc(points))
 standings2 <- standings
 ```
 
-
 ```{r, echo = TRUE}
-outcome <- function(team1, team2){
-}
-```
-
-```{r, echo = TRUE}
+#This is the simulation of the remainder of the regular season. Iterates through each game, calculates head-to-head win probabilities, then 
+#assigns the game a result based on the random number generated. The simulation is ran 100 times, with the final standings showing the average values for each column
 k = 100
 n <- rows + 1
 for(i in 1:k){
