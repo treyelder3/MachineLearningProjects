@@ -1,5 +1,5 @@
 ---
-title: "Playoffs XGBT60"
+title: "Final Project Lasso Regression"
 author: "Trey Elder"
 date: "2024-10-17"
 output: html_document
