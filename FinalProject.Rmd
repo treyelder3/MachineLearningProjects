@@ -1,5 +1,5 @@
 ---
-title: "PuckUnlimitedIdea4"
+title: "Machine Learning Class Final Project"
 author: "Trey Elder"
 date: "2024-11-25"
 output: html_document
